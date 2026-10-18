@@ -66,7 +66,10 @@ export const SCENE_ACTIONS = {
         }
       }
     } catch (err) {
-      logger.warn(`Acknowledging the alerts of ${device.name} failed: ${err.message}`);
+      logger.warn(
+        `Acknowledging the alerts of ${device.name} failed after ${acknowledged}: ${err.message}`,
+      );
+      await hub.pollAll({ fresh: true }); // show the ones acknowledged before the failure
       // A read-only role gets a 403, or a bare HTTP 500 (LibreNMS 26.9.1).
       if (err.kind === ERROR_KINDS.FORBIDDEN || err.status === 500) {
         throw new Error(pick(ACTION_TEXT.acknowledgeRefused, language), { cause: err });

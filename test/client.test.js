@@ -83,6 +83,13 @@ test('errors: refused token, network, certificate, proxy, redirect, not LibreNMS
     failing(Object.assign(new Error('x'), { code: 'DEPTH_ZERO_SELF_SIGNED_CERT' })).detect(),
     { kind: ERROR_KINDS.TLS },
   );
+  // An https:// address on a plain HTTP server: a configuration error, not an outage.
+  await assert.rejects(
+    failing(Object.assign(new Error('x'), { code: 'ERR_SSL_WRONG_VERSION_NUMBER' })).detect(),
+    {
+      kind: ERROR_KINDS.TLS,
+    },
+  );
   const answering = (status, body = '') =>
     new LibreNMSClient({
       url: API_URL,

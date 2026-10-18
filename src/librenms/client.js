@@ -50,7 +50,11 @@ const TLS_CODES = new Set([
   'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
   'CERT_HAS_EXPIRED',
   'ERR_TLS_CERT_ALTNAME_INVALID',
+  'CERT_NOT_YET_VALID',
+  // An https:// address on a plain HTTP server.
+  'EPROTO',
 ]);
+const isTlsError = (code) => TLS_CODES.has(code) || /^ERR_SSL_/.test(code ?? '');
 
 // Active alert states (LibreNMS\Enum\AlertState): 0 is a cleared alert.
 export const ALERT_STATES = Object.freeze({
@@ -211,7 +215,7 @@ export class LibreNMSClient {
         timeoutMs: this.timeoutMs,
       });
     } catch (err) {
-      if (TLS_CODES.has(err.code)) {
+      if (isTlsError(err.code)) {
         throw new LibreNMSError(ERROR_KINDS.TLS, `Certificate refused (${err.code})`);
       }
       if (!err.code) {

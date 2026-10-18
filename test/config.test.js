@@ -52,3 +52,18 @@ test('normalizeConfig: defaults, a trimmed token, unknown choices replaced', () 
   assert.equal(config.allowSelfSigned, true);
   assert.equal(normalizeConfig().allowAcknowledge, true);
 });
+
+test('a sub-path made of a page name is kept (review)', () => {
+  assert.equal(
+    parseApiUrl('https://h.example/apps/librenms/'),
+    'https://h.example/apps/librenms/api/v0',
+  );
+  assert.equal(
+    parseApiUrl('https://h.example/ports/librenms'),
+    'https://h.example/ports/librenms/api/v0',
+  );
+  assert.equal(
+    parseApiUrl('https://h.example/apps/librenms/health/metric=temperature/'),
+    'https://h.example/apps/librenms/api/v0',
+  );
+});

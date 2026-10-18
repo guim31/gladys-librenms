@@ -31,10 +31,34 @@ export const MAX_PORTS = 20;
 
 const API_PATH = '/api/v0';
 
-// Pages of the web interface found at the root of a LibreNMS site: a sub-path
-// made of one of them is not where LibreNMS is installed.
-const UI_PAGES =
-  /\/(api(\/v0)?|devices?|ports?|alerts?|alert-rules|health|overview|dashboard|eventlog|settings|login|apps|maps|graphs|search|bills|wireless|inventory|outages|poller|syslog|graylog|device-groups|port-groups|users|about)(\/.*)?$/i;
+// Pages of the web interface found at the root of a LibreNMS site. Their
+// arguments hold an `=` (`/device/device=1/tab=ports/`): a page segment is cut
+// only when everything after it is such arguments, so an installation under
+// `/apps/librenms` keeps its sub-path.
+const UI_PAGES = new Set(
+  'devices device ports port alerts alert alert-rules health overview dashboard eventlog settings login apps maps graphs search bills wireless inventory outages poller syslog graylog device-groups port-groups users about'.split(
+    ' ',
+  ),
+);
+
+function stripPage(pathname) {
+  const segments = pathname.split('/').filter(Boolean);
+  const api = segments.findIndex(
+    (segment, index) => segment.toLowerCase() === 'api' && segments[index + 1] === 'v0',
+  );
+  if (api >= 0) {
+    return segments.slice(0, api);
+  }
+  for (let index = 0; index < segments.length; index += 1) {
+    if (
+      UI_PAGES.has(segments[index].toLowerCase()) &&
+      segments.slice(index + 1).every((segment) => segment.includes('='))
+    ) {
+      return segments.slice(0, index);
+    }
+  }
+  return segments;
+}
 
 /**
  * Parse the address typed by the user into the base URL of the API: a bare
@@ -66,10 +90,8 @@ export function parseApiUrl(raw) {
   if (url.username || url.password) {
     return null;
   }
-  const path = url.pathname
-    .replace(/\/+$/, '')
-    .replace(/\/index\.php$/i, '')
-    .replace(UI_PAGES, '');
+  const segments = stripPage(url.pathname.replace(/\/index\.php$/i, ''));
+  const path = segments.length ? `/${segments.join('/')}` : '';
   return `${url.origin}${path}${API_PATH}`;
 }
 

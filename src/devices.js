@@ -331,7 +331,11 @@ export function equipmentValues(gladys, device, alerts, sensors = []) {
   }
   values.push({ externalId: ids.feature(FEATURE_KEYS.ALERTS), value: alerts.length });
   for (const sensor of keptSensors(sensors)) {
-    values.push({ externalId: ids.feature(sensorKey(sensor.id)), value: round(sensor.value) });
+    // Down, LibreNMS keeps the last reading: not sent again as fresh.
+    values.push({
+      externalId: ids.feature(sensorKey(sensor.id)),
+      value: device.up ? round(sensor.value) : null,
+    });
   }
   return values;
 }

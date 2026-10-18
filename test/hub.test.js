@@ -408,3 +408,25 @@ test('no configuration: a clear connection status, no request', async (t) => {
   assert.match(w.fake.connectionStatus.message.en, /Enter the address/);
   assert.equal(w.librenms.calls.length, 0);
 });
+
+test('a device leaving the scope with an active alert: no "cleared" (review)', async (t) => {
+  const w = await world(t);
+  w.librenms.raise(2, { rule_id: 3, severity: 'warning', name: 'Toner low' });
+  await w.hub.pollAll();
+  w.librenms.device(2).disabled = 1;
+  await w.hub.pollAll();
+  assert.deepEqual(keys(w), [TRIGGERS.ALERT_RAISED]);
+});
+
+test('a device down: its health sensors are not sent again as fresh (review)', async (t) => {
+  const clock = createClock();
+  const w = await world(t, { clock });
+  await createDevices(w);
+  w.librenms.setDown(Number(NAS), { alert: false });
+  await w.hub.pollAll();
+  clock.advance(6 * 3600_000);
+  const before = w.fake.states.length;
+  await w.hub.pollAll();
+  const sent = w.fake.states.slice(before).map((state) => state.device_feature_external_id);
+  assert.ok(!sent.includes(equipmentFeature(w.gladys, NAS, sensorKey(1))));
+});

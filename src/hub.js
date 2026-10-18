@@ -69,9 +69,9 @@ export const HUB_TIMINGS = {
 export const MAX_EVENTS_PER_READ = 30;
 
 const MAX_STATES_PER_REQUEST = 100;
-// States per read, at most (Gladys accepts 300 per minute): the changes first,
-// then the heartbeats; the rest goes at the next read.
-export const MAX_STATES_PER_READ = 200;
+// States per minute, at most (Gladys accepts 300): the changes first, then
+// the heartbeats; the rest goes at the next read.
+export const MAX_STATES_PER_MINUTE = 200;
 
 const signature = (config) =>
   JSON.stringify([config.apiUrl, config.apiToken, config.allowSelfSigned]);
@@ -81,7 +81,7 @@ const signature = (config) =>
 const scopeOf = (config) =>
   JSON.stringify([
     config.apiUrl,
-    config.deviceGroups,
+    [...config.deviceGroups].map((group) => group.toLowerCase()).sort(),
     createHash('sha256').update(config.apiToken).digest('hex').slice(0, 16),
   ]);
 
@@ -317,7 +317,16 @@ export class LibreNMSHub {
         chosen.set(port.id, port);
       }
     }
-    return { ports: [...chosen.values()].slice(0, MAX_PORTS), unmatched };
+    // Beyond the cap (`device:*`), the ports already followed stay first, then
+    // by id: the list does not shuffle when a port is enabled again.
+    const followed = (port) => port.id in this.saved.ports;
+    const kept = [...chosen.values()]
+      .sort((a, b) => Number(followed(b)) - Number(followed(a)) || Number(a.id) - Number(b.id))
+      .slice(0, MAX_PORTS);
+    if (chosen.size > kept.length) {
+      unmatched.push(`+${chosen.size - kept.length} (max ${MAX_PORTS})`);
+    }
+    return { ports: kept, unmatched };
   }
 
   async applySuccess({ version, devices, alerts, sensors, ports, missingGroups }) {
@@ -509,6 +518,12 @@ export class LibreNMSHub {
     }
     for (const [alertId, entry] of Object.entries(known)) {
       if (current.has(alertId)) {
+        continue;
+      }
+      // Its device left the scope (disabled, ignored, out of the groups): the
+      // alert may well be active still, it is forgotten, not "cleared".
+      if (!this.data.devices.has(entry.deviceId)) {
+        delete known[alertId];
         continue;
       }
       if (entry.announced === false) {
@@ -722,6 +737,12 @@ export class LibreNMSHub {
     await this.sendStates(values);
   }
 
+  /** The share of MAX_STATES_PER_MINUTE of one read, at the configured interval. */
+  statesPerRead() {
+    const interval = this.config?.pollIntervalMs ?? 60_000;
+    return Math.max(1, Math.floor((MAX_STATES_PER_MINUTE * Math.min(interval, 60_000)) / 60_000));
+  }
+
   async sendStates(values, { force = false } = {}) {
     const now = this.now();
     const known = values.filter(({ value }) => value !== null); // unknown: the last value stands
@@ -735,7 +756,7 @@ export class LibreNMSHub {
         now - (this.publishedAt.get(externalId) ?? 0) >= this.timings.heartbeatMs,
     );
     const states = [...changed, ...due]
-      .slice(0, force ? Infinity : MAX_STATES_PER_READ)
+      .slice(0, force ? Infinity : this.statesPerRead())
       .map(({ externalId, value }) => ({ device_feature_external_id: externalId, state: value }));
     for (let at = 0; at < states.length; at += MAX_STATES_PER_REQUEST) {
       const batch = states.slice(at, at + MAX_STATES_PER_REQUEST);
