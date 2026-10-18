@@ -1,67 +1,212 @@
-# Template de démonstration
+# LibreNMS
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Amenez votre supervision réseau [LibreNMS](https://www.librenms.org/) dans
+Gladys : chaque équipement supervisé par LibreNMS devient un appareil Gladys
+(en ligne, temps de fonctionnement, alertes actives, capteurs de santé), les
+ports de votre choix ont leur propre appareil (en ligne, débit entrant et
+sortant), un appareil « LibreNMS » compte les équipements hors ligne et les
+alertes, et vos scènes réagissent quand un équipement ou un port tombe,
+revient, ou quand une alerte se déclenche ou se résout. Une scène peut aussi
+acquitter les alertes d'un équipement, et un widget du tableau de bord montre
+ce qui ne va pas.
 
-## Ce que vous obtenez
+L'intégration lit l'API de LibreNMS sur votre réseau local, avec un jeton
+d'API. Rien ne passe par un cloud.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Testé avec un vrai LibreNMS 26.9.1 (image Docker officielle), avec un agent
+SNMP arrêté puis relancé : équipement hors ligne puis revenu, alerte
+déclenchée, acquittée puis résolue. Les capteurs de santé d'un vrai matériel
+et la chute du lien d'un vrai port de switch n'ont été vérifiés que par la
+forme des réponses de l'API. Vos retours sont les bienvenus :
+[github.com/guim31/gladys-librenms/issues](https://github.com/guim31/gladys-librenms/issues).
 
-## Configuration
+## Ce qu'il faut
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+- Gladys Assistant 5.1.0 ou plus récent.
+- LibreNMS avec son API (toute version récente), joignable depuis la machine
+  de Gladys (l'adresse de son interface web).
+- Un utilisateur LibreNMS pour Gladys. Le rôle **global-read** suffit pour
+  lire ; l'action de scène d'acquittement demande un rôle qui peut modifier
+  les alertes (admin).
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+## Mise en route
 
-## Actions
+### 1. Créer un jeton d'API
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+Dans LibreNMS, ouvrez le menu ⚙ → **API → API Settings**, cliquez sur
+**Create API access token**, choisissez l'utilisateur, ajoutez une
+description et copiez le jeton.
 
-## Scènes
+### 2. Configurer l'intégration
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+Dans Gladys, ouvrez la configuration de l'intégration :
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+- **Adresse de LibreNMS** : l'adresse avec laquelle vous ouvrez LibreNMS, par
+  exemple `http://192.168.1.2:8000` ou `https://librenms.example.com`. Une
+  page copiée depuis le navigateur (`…/devices`) fonctionne aussi.
+- **Jeton d'API** : le jeton de l'étape 1.
+- **Groupes d'équipements (facultatif)** : noms de groupes d'équipements
+  LibreNMS, séparés par des virgules. Vide : tous les équipements ni
+  désactivés ni ignorés.
+- **Ports à suivre (facultatif)** : paires `équipement:port` séparées par des
+  virgules, l'équipement par son nom d'hôte (ou son nom système, ou son nom
+  affiché), le port par son nom dans LibreNMS, par exemple
+  `switch:ge-0/0/1, nas:eth0`. `équipement:*` suit tous les ports de
+  l'équipement activés par l'administrateur. 20 ports au plus.
+- **Intervalle de rafraîchissement** : de 30 secondes à 5 minutes (1 minute
+  par défaut).
+- **Autoriser l'acquittement depuis les scènes** : décochez pour désactiver
+  l'action d'acquittement.
+- **Accepter les certificats auto-signés** : pour une adresse en `https://`
+  dont le certificat n'est pas reconnu par votre navigateur non plus.
+- **Langue des noms** : langue des noms des fonctionnalités et des résultats
+  de scène.
+
+Enregistrez, puis cliquez sur **Tester la connexion** : le compte rendu donne
+la version de LibreNMS, le nombre d'équipements, d'équipements hors ligne,
+d'alertes actives, et les ports suivis introuvables.
+
+### 3. Ajouter les appareils
+
+Ouvrez l'onglet **Découverte** de l'intégration et ajoutez les équipements et
+les ports à suivre, et l'appareil « LibreNMS » pour les totaux. Les
+déclencheurs de scène valent pour tous les équipements, ajoutés à Gladys ou
+non.
+
+## Les appareils
+
+Chaque **équipement** de LibreNMS :
+
+| Fonctionnalité          | Valeur                                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| En ligne                | 1 en ligne, 0 hors ligne, tel que LibreNMS le voit (ping, SNMP)                                 |
+| Temps de fonctionnement | en jours (équipements SNMP seulement)                                                           |
+| Alertes actives         | nombre d'alertes actives, acquittées comprises                                                  |
+| Capteurs de santé       | jusqu'à 10 : températures, ventilateurs (tr/min), charge, puissance, tension, courant, humidité |
+
+Les capteurs de santé sont ceux que LibreNMS a découverts sur l'équipement,
+avec leur nom LibreNMS ; les températures d'abord.
+
+Chaque **port suivi** :
+
+- En ligne : 1 quand le lien est établi
+- Débit entrant, en Mbit/s
+- Débit sortant, en Mbit/s
+
+L'appareil **LibreNMS** :
+
+- Équipements hors ligne
+- Alertes actives
+- Alertes critiques
+
+Les valeurs ne sont envoyées à Gladys que lorsqu'elles changent, et toutes
+les 6 heures sinon. Tant qu'un équipement est hors ligne, son temps de
+fonctionnement et ses ports gardent leur dernière valeur et son badge le
+montre injoignable.
 
 ## Tableau de bord
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+Le widget **Vue LibreNMS** affiche trois tuiles — les équipements hors ligne,
+les alertes actives, celles pas encore acquittées — et une liste : les
+équipements hors ligne d'abord, puis les alertes, les plus graves d'abord
+(règle, équipement, ✓ une fois acquittée). Dix lignes au plus. **Actualiser**
+relit LibreNMS. Dans ses réglages, choisissez des équipements pour ne montrer
+que les leurs (vide : tous).
+
+## Scènes
+
+### Déclencheurs
+
+- **Un équipement tombe** : LibreNMS voit un équipement hors ligne. Filtre :
+  appareils (vide : n'importe lequel). Variables : nom de l'équipement, nom
+  d'hôte, raison (`icmp`, `snmp`).
+- **Un équipement revient** : un équipement vu hors ligne est de nouveau en
+  ligne, avec la durée en minutes.
+- **Une alerte se déclenche** : une règle d'alerte LibreNMS se vérifie sur un
+  équipement. Filtres : appareils, sévérités (Avertissement, Critique, OK).
+  Variables : nom de l'équipement, règle d'alerte, sévérité (en toutes lettres
+  et en clé), identifiant de la règle, identifiant de l'alerte.
+- **Une alerte est résolue** : une alerte est terminée, avec les mêmes filtres
+  et variables, plus sa durée en minutes.
+- **Un port suivi tombe** : un port suivi perd son lien (pas quand
+  l'administrateur le coupe, ni pendant que son équipement est hors ligne).
+  Variables : nom de l'équipement, port, description du port, état. Le filtre
+  porte sur les appareils de port.
+- **Un port suivi revient** : le lien est rétabli, avec la durée en minutes.
+- **LibreNMS ne répond plus** : l'API ne répond pas deux fois de suite
+  (variables : adresse de LibreNMS, erreur).
+
+Ce qui est déjà là au démarrage de l'intégration n'est pas annoncé. Un
+changement survenu pendant un redémarrage de Gladys ou de l'intégration est
+annoncé une fois à la lecture suivante. Acquitter une alerte ne la résout pas
+et ne la redéclenche pas.
+
+### Actions
+
+- **Acquitter les alertes d'un équipement** : acquitte les alertes actives de
+  l'équipement dans LibreNMS, avec une note dans leur historique (vide :
+  « Acquitté depuis Gladys »). LibreNMS notifie de nouveau si une alerte
+  s'aggrave. Renvoie le nombre d'alertes acquittées. Désactivable avec
+  « Autoriser l'acquittement depuis les scènes ».
+- **Lire l'état du réseau** : compte et liste les équipements hors ligne et
+  les alertes actives, d'un équipement ou de tous, pour les actions
+  suivantes : équipements hors ligne (nombre et noms), alertes, non
+  acquittées, critiques, sévérité la plus haute, et la liste
+  « équipement : règle ».
+
+### Idées de scènes
+
+- **La box est tombée** : déclencheur « Un équipement tombe » sur le routeur →
+  allumer la lampe de l'entrée en rouge et envoyer
+  `{{triggerEvent.data.name}} est hors ligne`.
+- **Les alertes critiques seulement** : déclencheur « Une alerte se
+  déclenche », sévérité Critique → message
+  `{{triggerEvent.data.name}} : {{triggerEvent.data.rule}}`.
+- **Le lien montant du switch** : suivre `switch:ge-0/0/1`, déclencheur « Un
+  port suivi tombe » → message, et « Un port suivi revient » → « Revenu après
+  {{triggerEvent.data.duration_minutes}} min ».
+- **Vu depuis le canapé** : un bouton du tableau de bord lance « Acquitter les
+  alertes d'un équipement » sur le NAS.
 
 ## Dépannage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+- **« Jeton d'API refusé »** : vérifiez le jeton dans API Settings (pas
+  désactivé) et que son utilisateur existe toujours.
+- **« LibreNMS ne répond pas »** : vérifiez l'adresse depuis la machine de
+  Gladys. `localhost` désigne le conteneur de l'intégration lui-même : utilisez
+  l'adresse IP de la machine de LibreNMS.
+- **« Pas d'API LibreNMS à cette adresse »** ou **« l'adresse redirige »** :
+  l'adresse ne mène pas à LibreNMS ; `/api/v0` doit répondre à sa racine (ou
+  sous son sous-chemin).
+- **« Certificat refusé »** : cochez « Accepter les certificats auto-signés »,
+  ou utilisez l'adresse en `http://` sur le réseau local.
+- **« Aucun groupe d'équipements de ce nom »** : les noms doivent être ceux de
+  LibreNMS.
+- **Un équipement manque** : il est désactivé ou ignoré dans LibreNMS, hors
+  des groupes d'équipements, ou l'utilisateur du jeton ne le voit pas.
+- **Un port est introuvable** : « Tester la connexion » liste les paires
+  qu'il n'a pas pu associer ; utilisez le nom de port affiché par LibreNMS
+  (ifName).
+- **L'acquittement est refusé** : l'utilisateur du jeton doit avoir un rôle
+  qui modifie les alertes (admin). Un utilisateur global-read reçoit une
+  erreur.
+- **Une valeur est en retard** : LibreNMS interroge ses équipements toutes
+  les 5 minutes ; un intervalle plus court ne fait que voir les changements
+  plus tôt.
+
+## Limites
+
+- Un seul serveur LibreNMS par intégration.
+- Pas d'utilisation du processeur ni de la mémoire : l'API les donne
+  équipement par équipement, ce qui multiplierait les requêtes ; les capteurs
+  « load » sont gardés quand LibreNMS en a.
+- Au plus 10 capteurs de santé par équipement, 20 ports suivis, 30 événements
+  de scène par lecture (une panne peut faire tomber des dizaines
+  d'équipements d'un coup ; le reste suit aux lectures suivantes).
+- Les vitesses de ventilateur n'ont pas d'unité dans Gladys : « (rpm) »
+  termine leur nom.
+- Pas de quota sur l'API de LibreNMS : chaque lecture envoie quatre ou cinq
+  requêtes (une de plus par groupe d'équipements), quel que soit le nombre
+  d'équipements.
+
+Sans lien avec le projet LibreNMS.

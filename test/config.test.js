@@ -1,33 +1,69 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeConfig, DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULT_CONFIG, normalizeConfig, parseApiUrl, parsePorts } from '../src/config.js';
 
-test('normalizeConfig returns the defaults when called with no argument', () => {
-  assert.deepEqual(normalizeConfig(), DEFAULT_CONFIG);
+test('the address: a bare host, a page of the web interface, the API itself', () => {
+  assert.equal(parseApiUrl('192.0.2.5:8000'), 'http://192.0.2.5:8000/api/v0');
+  assert.equal(parseApiUrl(' https://lnms.example.com/ '), 'https://lnms.example.com/api/v0');
+  assert.equal(parseApiUrl('http://192.0.2.5/devices/'), 'http://192.0.2.5/api/v0');
+  assert.equal(parseApiUrl('http://192.0.2.5/device/device=1/'), 'http://192.0.2.5/api/v0');
+  assert.equal(
+    parseApiUrl('http://192.0.2.5/librenms/overview'),
+    'http://192.0.2.5/librenms/api/v0',
+  );
+  assert.equal(parseApiUrl('http://192.0.2.5/api/v0/'), 'http://192.0.2.5/api/v0');
+  assert.equal(parseApiUrl('http://192.0.2.5/index.php'), 'http://192.0.2.5/api/v0');
 });
 
-test('normalizeConfig keeps user values over the defaults', () => {
-  const config = normalizeConfig({ latitude: 45.5, longitude: -73.6, unit: 'fahrenheit' });
-  assert.equal(config.latitude, 45.5);
-  assert.equal(config.longitude, -73.6);
-  assert.equal(config.unit, 'fahrenheit');
+test('an unusable address is refused, credentials in it too', () => {
+  for (const raw of ['', '   ', 'ftp://192.0.2.5', 'http://', 'http://user:pw@192.0.2.5', 42]) {
+    assert.equal(parseApiUrl(raw), null, String(raw));
+  }
+  assert.equal(normalizeConfig({ librenms_url: 'ftp://x' }).invalidUrl, true);
+  assert.equal(normalizeConfig({}).invalidUrl, false);
 });
 
-test('normalizeConfig coerces numeric strings coming from a form', () => {
-  const config = normalizeConfig({ latitude: '48.8', longitude: '2.3', poll_frequency: '600' });
-  assert.equal(config.latitude, 48.8);
-  assert.equal(config.longitude, 2.3);
-  assert.equal(config.poll_frequency, 600);
-  assert.equal(typeof config.poll_frequency, 'number');
+test('ports: device:port pairs, the last colon splits, duplicates dropped', () => {
+  assert.deepEqual(
+    parsePorts('switch:ge-0/0/1, nas:*;SWITCH:GE-0/0/1\n2001:db8::1:eth0, bad, :x, y:'),
+    [
+      { device: 'switch', port: 'ge-0/0/1' },
+      { device: 'nas', port: '*' },
+      { device: '2001:db8::1', port: 'eth0' },
+    ],
+  );
 });
 
-test('normalizeConfig falls back to the default for a missing numeric field', () => {
-  const config = normalizeConfig({ unit: 'celsius' });
-  assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
+test('normalizeConfig: defaults, a trimmed token, unknown choices replaced', () => {
+  const config = normalizeConfig({
+    librenms_url: '192.0.2.5',
+    api_token: ' 1|abc \n',
+    device_groups: 'Homelab, Switches,,',
+    poll_interval: '7',
+    language: 'it',
+    allow_acknowledge: 'false',
+    allow_self_signed: 'true',
+  });
+  assert.equal(config.apiToken, '1|abc');
+  assert.deepEqual(config.deviceGroups, ['Homelab', 'Switches']);
+  assert.equal(config.pollIntervalMs, Number(DEFAULT_CONFIG.poll_interval) * 1000);
+  assert.equal(config.language, 'fr');
+  assert.equal(config.allowAcknowledge, false);
+  assert.equal(config.allowSelfSigned, true);
+  assert.equal(normalizeConfig().allowAcknowledge, true);
 });
 
-test('GLADYS_PREFER_LOCAL defaults to true and only an explicit false disables it', () => {
-  assert.equal(normalizeConfig().GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: true }).GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: false }).GLADYS_PREFER_LOCAL, false);
+test('a sub-path made of a page name is kept (review)', () => {
+  assert.equal(
+    parseApiUrl('https://h.example/apps/librenms/'),
+    'https://h.example/apps/librenms/api/v0',
+  );
+  assert.equal(
+    parseApiUrl('https://h.example/ports/librenms'),
+    'https://h.example/ports/librenms/api/v0',
+  );
+  assert.equal(
+    parseApiUrl('https://h.example/apps/librenms/health/metric=temperature/'),
+    'https://h.example/apps/librenms/api/v0',
+  );
 });

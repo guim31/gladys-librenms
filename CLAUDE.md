@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/hub.test.js              # one file
+node --test --test-name-pattern "alert"   # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,16 +31,22 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only: src/app.js registers the handlers before connect()
+src/app.js                        every SDK handler -> the hub (also used by the tests)
+src/hub.js                        reading timer, states (changes + heartbeat), scene events, views
+src/devices.js                    equipment, port and server devices, feature names (4 languages), values
+src/librenms/client.js            REST API v0: version, snapshot (devices, alerts, sensors, ports), acknowledge
+src/librenms/http.js              node:http/https request (self-signed certificates on request)
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget `overview` (manifest `widgets`)
+src/texts.js                      connection, error, report, severity texts (4 languages)
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
+src/store.js                      /data/librenms-state.json (what was already announced)
+src/logs.js                       repeated failures logged once, then once when they heal
+gladys-assistant-integration.json manifest: name, config_schema, actions, triggers, widget...
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
 test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+                                  and helpers/fakeLibreNMS.js (real answers in test/fixtures/librenms)
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -70,8 +76,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, manifest texts, feature names and `docs/{en,fr,de,es}.md`, kept in
+  sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -233,3 +240,36 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## LibreNMS (propre à ce dépôt)
+
+Vérifié le 18/10/2026 contre un vrai **LibreNMS 26.9.1** (image `librenms/librenms`, MariaDB 11, Redis 7, en
+Docker), avec un agent `snmpd` (Alpine) arrêté puis relancé : `device_down`, `alert_raised`, acquittement (jeton
+admin), `device_up`, `alert_cleared`, de bout en bout contre le faux Gladys du SDK. Réponses réelles anonymisées
+dans `test/fixtures/librenms/librenms-26.9.1.json`.
+
+- **API v0, en-tête `X-Auth-Token`.** Une lecture = `system` (version, une fois par heure), `devices?type=active`
+  (ni désactivés ni ignorés), `alerts?state=1,2,3,4,5`, `resources/sensors`, `ports?columns=…` (seulement si des
+  ports sont suivis), plus `devicegroups/<nom>` par groupe du filtre. Nombre de requêtes indépendant du nombre
+  d'équipements : ne pas passer par `devices/<host>/health` ou `/ports`, qui coûtent une requête par équipement.
+- **`devices` renvoie toutes les colonnes de la table**, communauté SNMP et identifiants v3 compris : `toDevice()`
+  ne garde que les champs utiles, un test le vérifie. Ne jamais journaliser une ligne brute.
+- **Listes vides = 404** `{"status":"error"}` : `resources/sensors` (« Sensors do not exist »), `devicegroups/<nom>`
+  (« Device group not found » / « No devices found in group … »). `client.list()` les rend vides.
+- **Mauvais jeton : 401 `{"message":"Unauthenticated."}`** (sans `status`). Un chemin qui n'est pas l'API : 302
+  vers `/login`.
+- **Acquitter : `PUT alerts/<id>`** `{ note, until_clear: false }` (LibreNMS renotifie si l'alerte s'aggrave). Un
+  id inconnu répond **200** « No Alert by that ID ». Un jeton **global-read** reçoit un **500** « Server Error »
+  (pas un 403) : traité comme un refus de droits.
+- **Une alerte = une ligne par (règle, équipement)**, état 0 quand résolue, id réutilisé au redéclenchement.
+  États actifs : 1 actif, 2 acquitté, 3 pire, 4 mieux, 5 changé. L'acquittement ne fait ni résolution ni nouvel
+  événement.
+- `status_reason` vaut `icmp,snmp` pour un équipement hors ligne. Un équipement **ping seul** (`snmp_disable: 1`)
+  a `uptime: null` : pas de fonctionnalité uptime. LibreNMS ne sonde pas un équipement hors ligne : uptime et
+  ports gardent leurs dernières valeurs, on ne publie rien de neuf et pas d'événement de port.
+- Débits `ifInOctets_rate` en **octets/s** (convertis en Mbit/s) ; ils restent `null` avant le deuxième sondage.
+- Pas de processeur ni de mémoire en v1 : l'API ne les donne qu'équipement par équipement (`health/device_processor/<id>`).
+- Sur le banc : `snmpd` ne se lie pas au port 161 dans un conteneur non privilégié (« Error opening specified
+  endpoint ») ; il écoute sur 1161 et l'équipement est ajouté avec `lnms device:add --v2c -c public -r 1161`.
+  Les règles d'alerte se créent par l'API avec `"mute": true` (sinon « Each operation must include at least one
+  transport »). Les capteurs de santé ont été insérés en base (l'agent de test n'en a pas) puis relus par l'API.

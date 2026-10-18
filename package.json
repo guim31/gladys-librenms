@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
+  "name": "gladys-librenms",
   "version": "1.0.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Gladys Assistant integration for LibreNMS: devices, health sensors, ports and alerts as devices, scene triggers when a device or a port goes down or an alert is raised, acknowledgement from scenes, a dashboard widget.",
   "type": "module",
   "main": "index.js",
   "scripts": {

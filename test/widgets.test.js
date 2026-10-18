@@ -1,77 +1,94 @@
+// The `overview` widget: within the core budget, devices down then alerts,
+// the chosen devices only, the Refresh button.
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateWidgetContent } from '@gladysassistant/integration-sdk';
-import { createFakeGladys } from '@gladysassistant/integration-sdk/testing';
-import { buildDiscoveredDevices } from '../src/devices/index.js';
-import { simulateLanSession } from '../src/devices/plug.js';
-import { DEMO_STATUS_WIDGET, WIDGETS, refreshWidgets } from '../src/widgets.js';
-import { normalizeConfig } from '../src/config.js';
+import { createDevices, createWorld, equipmentDevice } from './helpers/world.js';
 
-const gladys = createFakeGladys();
-const config = normalizeConfig();
-const demoStatus = WIDGETS[DEMO_STATUS_WIDGET];
+async function content(w, settings = {}, language = 'en') {
+  const ack = await w.fake.widgetGet('overview', { settings, language });
+  assert.equal(ack.success, true, ack.error);
+  return ack.data.content;
+}
 
-// What the SDK passes to onWidgetGet, plus the config index.js adds.
-const getContent = (cfg = config) =>
-  demoStatus.get(gladys, { settings: {}, language: 'en', units: 'metric', config: cfg });
+const budget = (widget) => {
+  assert.doesNotThrow(() => validateWidgetContent(widget));
+  assert.ok(widget.components.length <= 8);
+  assert.ok(widget.components.filter((component) => component.type === 'text').length <= 2);
+};
 
-test('the demo_status content is rendered exactly as sent', async () => {
-  // [] = nothing the core would drop, truncate or trim to the content budget.
-  assert.deepEqual(validateWidgetContent(await getContent()), []);
+test('all fine: three tiles, one row, the Refresh button', async (t) => {
+  const w = await createWorld();
+  t.after(() => w.app.stop());
+  const widget = await content(w);
+  budget(widget);
+  assert.deepEqual(
+    widget.components.map((component) => component.type),
+    ['value', 'value', 'value', 'status', 'button'],
+  );
+  assert.deepEqual(widget.components[3].items[0], {
+    label: 'All fine',
+    value: '2 devices',
+    icon: 'check-circle',
+    color: 'success',
+  });
 });
 
-test('the degraded plug connection content is valid too', async () => {
-  simulateLanSession(false);
-  try {
-    const content = await getContent();
-    assert.deepEqual(validateWidgetContent(content), []);
-    const status = content.components.find((component) => component.type === 'status');
-    assert.ok(
-      status.items.some((item) => item.color === 'warning'),
-      'degraded shows a warning',
-    );
-  } finally {
-    simulateLanSession(true);
+test('devices down first, then the alerts, the most severe first; capped at ten rows', async (t) => {
+  const w = await createWorld();
+  t.after(() => w.app.stop());
+  w.librenms.setDown(2);
+  for (let rule = 10; rule < 25; rule += 1) {
+    w.librenms.raise(1, { rule_id: rule, severity: 'warning', name: `Rule ${rule}` });
   }
+  w.librenms.alerts[0].state = 2;
+  await w.hub.pollAll();
+  const widget = await content(w, {}, 'fr');
+  budget(widget);
+  assert.deepEqual(
+    widget.components.slice(0, 3).map((tile) => tile.value),
+    [1, 16, 15],
+  );
+  const rows = widget.components[3].items;
+  assert.equal(rows.length, 10);
+  assert.deepEqual(rows[0], {
+    label: 'printer.home.arpa',
+    value: 'hors ligne (icmp,snmp)',
+    icon: 'x-circle',
+    color: 'danger',
+  });
+  assert.equal(rows[1].icon, 'alert-octagon', 'the critical alert next');
+  assert.equal(rows.at(-1).value, '+8');
 });
 
-test('the live tiles reference features the integration publishes', async () => {
-  const featureIds = new Set(
-    buildDiscoveredDevices(gladys, config).flatMap((device) =>
-      device.features.map((feature) => feature.external_id),
+test('the chosen devices only; the refresh reads LibreNMS again', async (t) => {
+  const w = await createWorld();
+  t.after(() => w.app.stop());
+  await createDevices(w);
+  w.librenms.setDown(2);
+  await w.hub.pollAll();
+  const widget = await content(w, { devices: [equipmentDevice(w.gladys, '1')] });
+  assert.equal(widget.components[0].value, 0);
+  const reads = w.librenms.calls.length;
+  const ack = await w.fake.widgetAction('overview', 'refresh', {});
+  assert.equal(ack.success, true);
+  assert.ok(w.librenms.calls.length > reads);
+});
+
+test('not configured, or LibreNMS silent: a text', async (t) => {
+  const empty = await createWorld({ config: {} });
+  t.after(() => empty.app.stop());
+  assert.match((await content(empty)).components[0].text, /Enter the address/);
+  const w = await createWorld();
+  t.after(() => w.app.stop());
+  w.librenms.failWith = Object.assign(new Error('x'), { code: 'ETIMEDOUT' });
+  await w.hub.pollAll();
+  const widget = await content(w);
+  budget(widget);
+  assert.ok(
+    widget.components.some(
+      (component) => component.text === '192.0.2.10:8000: LibreNMS does not answer',
     ),
   );
-  const liveTiles = (await getContent()).components.filter((c) => c.device_feature);
-  assert.ok(liveTiles.length > 0, 'the template demonstrates a device-bound tile');
-  for (const tile of liveTiles) {
-    assert.ok(featureIds.has(tile.device_feature), `unknown feature ${tile.device_feature}`);
-  }
-});
-
-test('every button action of the content is handled and answers a short toast', async () => {
-  const buttons = (await getContent()).components.filter((c) => c.type === 'button' && c.action);
-  assert.ok(buttons.length > 0, 'the template demonstrates a widget action');
-  for (const { action } of buttons) {
-    const message = await demoStatus.action(gladys, {
-      actionKey: action.key,
-      params: action.params ?? {},
-      settings: {},
-      config,
-    });
-    assert.ok(message.en, 'the toast carries at least the mandatory `en` text');
-    assert.ok(message.en.length <= 200, 'toasts are capped at 200 characters');
-  }
-});
-
-test('an unknown widget action fails, so the user sees the error', async () => {
-  await assert.rejects(
-    demoStatus.action(gladys, { actionKey: 'unknown', params: {}, settings: {}, config }),
-    /Unknown widget action/,
-  );
-});
-
-test('refreshWidgets nudges every widget', () => {
-  const fresh = createFakeGladys();
-  refreshWidgets(fresh);
-  assert.deepEqual(fresh.fake.widgetRefreshes, Object.keys(WIDGETS));
 });

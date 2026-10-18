@@ -30,6 +30,29 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+What the integration handles:
+
+- **Secrets**: the LibreNMS API token is a `secret` field of the Gladys
+  configuration. The integration reads it from Gladys at startup, keeps it in
+  memory, sends it only to the LibreNMS address of the configuration (the
+  `X-Auth-Token` header), and never writes it to `/data` nor to the logs. A
+  token has the rights of its LibreNMS user: the global-read role is enough,
+  the acknowledgement scene action (which can be turned off) needs a role
+  that may update alerts.
+- **SNMP credentials**: the LibreNMS device list carries the SNMP community
+  and credentials of every device. The client keeps only the fields it uses
+  (id, names, status, uptime, hardware): they never reach Gladys, `/data` nor
+  the logs.
+- **Stored in `/data`**: `librenms-state.json`, what was already announced
+  (alert ids with their device, rule and severity; device and port up/down
+  states with their time), so that a restart neither repeats nor misses a
+  scene event. No secret; the scope key holds a hash of the token, not the
+  token.
+- **Network**: requests go only to the LibreNMS address typed in the
+  configuration, in HTTP or HTTPS. HTTPS certificates are verified unless the
+  user ticks "Accept self-signed certificates"; the integration opens no port
+  and calls no cloud service.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+LibreNMS itself, and the devices it monitors.
