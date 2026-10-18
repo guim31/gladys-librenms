@@ -1,177 +1,1116 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "LibreNMS",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Your LibreNMS devices, alerts and ports in Gladys, with scenes when something goes down.",
+    "fr": "Vos équipements, alertes et ports LibreNMS dans Gladys, et des scènes quand l'un tombe.",
+    "de": "Deine LibreNMS-Geräte, -Alarme und -Ports in Gladys, mit Szenen, wenn etwas ausfällt.",
+    "es": "Sus equipos, alertas y puertos de LibreNMS en Gladys, y escenas cuando algo cae."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-librenms:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-librenms/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your LibreNMS server",
+        "fr": "Votre serveur LibreNMS",
+        "de": "Dein LibreNMS-Server",
+        "es": "Su servidor LibreNMS"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "In LibreNMS, open the cog menu → API → API Settings, create a token and paste it below with the address of LibreNMS. Then add the devices to follow from the Discover tab: the scene triggers work for every device, added or not.",
+        "fr": "Dans LibreNMS, ouvrez le menu ⚙ → API → API Settings, créez un jeton et collez-le ci-dessous avec l'adresse de LibreNMS. Ajoutez ensuite les équipements à suivre depuis l'onglet Découverte : les déclencheurs de scène valent pour tous, ajoutés ou non.",
+        "de": "Öffne in LibreNMS das Zahnrad-Menü → API → API Settings, erstelle ein Token und füge es unten mit der Adresse von LibreNMS ein. Lege dann die Geräte, denen du folgen willst, im Tab „Entdecken“ an: Die Szenen-Auslöser gelten für alle, angelegt oder nicht.",
+        "es": "En LibreNMS, abra el menú ⚙ → API → API Settings, cree un token y péguelo abajo con la dirección de LibreNMS. Después, añada los equipos que quiera seguir desde la pestaña Descubrir: los disparadores de escena valen para todos, añadidos o no."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/guim31/gladys-librenms/blob/main/docs/en.md",
+          "label": {
+            "en": "Setup guide",
+            "fr": "Guide d'installation",
+            "de": "Installationsanleitung",
+            "es": "Guía de instalación"
+          }
+        },
+        {
+          "url": "https://docs.librenms.org/API/",
+          "label": {
+            "en": "LibreNMS API",
+            "fr": "API de LibreNMS",
+            "de": "API von LibreNMS",
+            "es": "API de LibreNMS"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "key": "librenms_url",
+      "type": "string",
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "label": {
+        "en": "LibreNMS address",
+        "fr": "Adresse de LibreNMS",
+        "de": "Adresse von LibreNMS",
+        "es": "Dirección de LibreNMS"
+      },
+      "description": {
+        "en": "The address you open LibreNMS with in your browser.",
+        "fr": "L'adresse avec laquelle vous ouvrez LibreNMS dans votre navigateur.",
+        "de": "Die Adresse, mit der du LibreNMS im Browser öffnest.",
+        "es": "La dirección con la que abre LibreNMS en su navegador."
+      },
+      "placeholder": {
+        "en": "e.g. http://192.168.1.2:8000",
+        "fr": "ex. http://192.168.1.2:8000",
+        "de": "z. B. http://192.168.1.2:8000",
+        "es": "p. ej. http://192.168.1.2:8000"
+      }
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
+      "key": "api_token",
+      "type": "secret",
       "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "label": {
+        "en": "API token",
+        "fr": "Jeton d'API",
+        "de": "API-Token",
+        "es": "Token de API"
+      },
+      "description": {
+        "en": "A user with the global-read role is enough; acknowledging needs one that may update alerts (admin).",
+        "fr": "Un utilisateur au rôle global-read suffit ; l'acquittement demande un rôle qui modifie les alertes (admin).",
+        "de": "Ein Benutzer mit der Rolle global-read genügt; zum Bestätigen braucht es eine Rolle, die Alarme ändern darf (admin).",
+        "es": "Basta un usuario con el rol global-read; para reconocer hace falta un rol que modifique alertas (admin)."
+      }
     },
     {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "device_groups",
+      "type": "string",
       "required": false,
-      "default": "celsius",
+      "label": {
+        "en": "Device groups (optional)",
+        "fr": "Groupes d'équipements (facultatif)",
+        "de": "Gerätegruppen (optional)",
+        "es": "Grupos de equipos (opcional)"
+      },
+      "description": {
+        "en": "Names separated by commas. Empty: every device neither disabled nor ignored.",
+        "fr": "Noms séparés par des virgules. Vide : tous les équipements ni désactivés ni ignorés.",
+        "de": "Namen durch Kommas getrennt. Leer: alle Geräte, die weder deaktiviert noch ignoriert sind.",
+        "es": "Nombres separados por comas. Vacío: todos los equipos ni desactivados ni ignorados."
+      },
+      "placeholder": {
+        "en": "e.g. Homelab, Switches",
+        "fr": "ex. Homelab, Switches",
+        "de": "z. B. Homelab, Switches",
+        "es": "p. ej. Homelab, Switches"
+      }
+    },
+    {
+      "key": "ports",
+      "type": "string",
+      "required": false,
+      "label": {
+        "en": "Ports to follow (optional)",
+        "fr": "Ports à suivre (facultatif)",
+        "de": "Zu verfolgende Ports (optional)",
+        "es": "Puertos a seguir (opcional)"
+      },
+      "description": {
+        "en": "device:port pairs separated by commas (device by host name, port by name), device:* for all its ports in use. Up to 20.",
+        "fr": "Paires équipement:port séparées par des virgules (équipement par nom d'hôte, port par nom), équipement:* pour tous ses ports actifs. 20 au plus.",
+        "de": "Paare Gerät:Port durch Kommas getrennt (Gerät per Hostname, Port per Name), Gerät:* für alle aktiven Ports. Höchstens 20.",
+        "es": "Pares equipo:puerto separados por comas (equipo por nombre de host, puerto por nombre), equipo:* para todos sus puertos activos. 20 como máximo."
+      },
+      "placeholder": {
+        "en": "e.g. switch:ge-0/0/1, nas:eth0",
+        "fr": "ex. switch:ge-0/0/1, nas:eth0",
+        "de": "z. B. switch:ge-0/0/1, nas:eth0",
+        "es": "p. ej. switch:ge-0/0/1, nas:eth0"
+      }
+    },
+    {
+      "key": "options",
+      "type": "section",
+      "label": {
+        "en": "Options",
+        "fr": "Options",
+        "de": "Optionen",
+        "es": "Opciones"
+      }
+    },
+    {
+      "key": "poll_interval",
+      "type": "select",
+      "required": false,
+      "default": "60",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
+      "description": {
+        "en": "How often LibreNMS is read (4 or 5 requests). LibreNMS itself polls the devices every 5 minutes.",
+        "fr": "Fréquence de lecture de LibreNMS (4 ou 5 requêtes). LibreNMS interroge lui-même les équipements toutes les 5 minutes.",
+        "de": "Wie oft LibreNMS gelesen wird (4 oder 5 Anfragen). LibreNMS selbst fragt die Geräte alle 5 Minuten ab.",
+        "es": "Con qué frecuencia se lee LibreNMS (4 o 5 peticiones). LibreNMS consulta los equipos cada 5 minutos."
+      },
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
-      "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
-      },
+      "key": "allow_acknowledge",
+      "type": "boolean",
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": true,
+      "label": {
+        "en": "Allow acknowledging from scenes",
+        "fr": "Autoriser l'acquittement depuis les scènes",
+        "de": "Bestätigen aus Szenen erlauben",
+        "es": "Permitir reconocer desde escenas"
+      },
+      "description": {
+        "en": "Untick to turn off the \"Acknowledge the alerts of a device\" scene action.",
+        "fr": "Décochez pour désactiver l'action de scène « Acquitter les alertes d'un équipement ».",
+        "de": "Deaktiviere es, um die Szenen-Aktion „Alarme eines Geräts bestätigen“ auszuschalten.",
+        "es": "Desmarque para desactivar la acción de escena «Reconocer las alertas de un equipo»."
+      }
+    },
+    {
+      "key": "allow_self_signed",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "label": {
+        "en": "Accept self-signed certificates",
+        "fr": "Accepter les certificats auto-signés",
+        "de": "Selbstsignierte Zertifikate akzeptieren",
+        "es": "Aceptar certificados autofirmados"
+      },
+      "description": {
+        "en": "Only for an https:// address whose certificate your browser does not trust either.",
+        "fr": "Seulement pour une adresse en https:// dont le certificat n'est pas reconnu par votre navigateur non plus.",
+        "de": "Nur für eine https://-Adresse, deren Zertifikat auch dein Browser nicht anerkennt.",
+        "es": "Solo para una dirección https:// cuyo certificado tampoco reconoce su navegador."
+      }
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "required": false,
+      "default": "fr",
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms",
+        "de": "Sprache der Namen",
+        "es": "Idioma de los nombres"
+      },
+      "description": {
+        "en": "Language of the feature names (set when a device is added) and of the scene results.",
+        "fr": "Langue des noms des fonctionnalités (fixés à l'ajout d'un appareil) et des résultats de scène.",
+        "de": "Sprache der Funktionsnamen (beim Hinzufügen eines Geräts festgelegt) und der Szenen-Ergebnisse.",
+        "es": "Idioma de los nombres de las funciones (fijados al añadir un dispositivo) y de los resultados de escena."
+      },
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "device_down",
+      "label": {
+        "en": "A device goes down",
+        "fr": "Un équipement tombe",
+        "de": "Ein Gerät fällt aus",
+        "es": "Un equipo cae"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "LibreNMS sees a device down (no ping or no SNMP).",
+        "fr": "LibreNMS voit un équipement hors ligne (ni ping ni SNMP).",
+        "de": "LibreNMS sieht ein Gerät offline (kein Ping oder kein SNMP).",
+        "es": "LibreNMS ve un equipo fuera de línea (sin ping o sin SNMP)."
       },
       "fields": [
         {
           "key": "device",
-          "type": "select",
+          "type": "multi_select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
         },
         {
-          "key": "target",
+          "key": "hostname",
+          "type": "string",
+          "label": {
+            "en": "Host name in LibreNMS",
+            "fr": "Nom d'hôte dans LibreNMS",
+            "de": "Hostname in LibreNMS",
+            "es": "Nombre de host en LibreNMS"
+          }
+        },
+        {
+          "key": "reason",
+          "type": "string",
+          "label": {
+            "en": "Reason (icmp, snmp)",
+            "fr": "Raison (icmp, snmp)",
+            "de": "Grund (icmp, snmp)",
+            "es": "Motivo (icmp, snmp)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "device_up",
+      "label": {
+        "en": "A device is back",
+        "fr": "Un équipement revient",
+        "de": "Ein Gerät ist zurück",
+        "es": "Un equipo vuelve"
+      },
+      "description": {
+        "en": "A device LibreNMS saw down is up again.",
+        "fr": "Un équipement que LibreNMS voyait hors ligne est de nouveau en ligne.",
+        "de": "Ein Gerät, das LibreNMS offline sah, ist wieder online.",
+        "es": "Un equipo que LibreNMS veía fuera de línea vuelve a estar en línea."
+      },
+      "fields": [
+        {
+          "key": "device",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "source": "devices",
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
+        },
+        {
+          "key": "hostname",
+          "type": "string",
+          "label": {
+            "en": "Host name in LibreNMS",
+            "fr": "Nom d'hôte dans LibreNMS",
+            "de": "Hostname in LibreNMS",
+            "es": "Nombre de host en LibreNMS"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration (minutes)",
+            "fr": "Durée (minutes)",
+            "de": "Dauer (Minuten)",
+            "es": "Duración (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "alert_raised",
+      "label": {
+        "en": "An alert is raised",
+        "fr": "Une alerte se déclenche",
+        "de": "Ein Alarm wird ausgelöst",
+        "es": "Se activa una alerta"
+      },
+      "description": {
+        "en": "A LibreNMS alert rule matches a device.",
+        "fr": "Une règle d'alerte LibreNMS se vérifie sur un équipement.",
+        "de": "Eine LibreNMS-Alarmregel trifft auf ein Gerät zu.",
+        "es": "Una regla de alerta de LibreNMS se cumple en un equipo."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        },
+        {
+          "key": "severity",
+          "type": "multi_select",
+          "label": {
+            "en": "Severities (empty: any)",
+            "fr": "Sévérités (vide : n'importe laquelle)",
+            "de": "Schweregrade (leer: beliebig)",
+            "es": "Gravedades (vacío: cualquiera)"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "warning",
+              "label": {
+                "en": "Warning",
+                "fr": "Avertissement",
+                "de": "Warnung",
+                "es": "Advertencia"
+              }
+            },
+            {
+              "value": "critical",
+              "label": {
+                "en": "Critical",
+                "fr": "Critique",
+                "de": "Kritisch",
+                "es": "Crítica"
+              }
+            },
+            {
+              "value": "ok",
+              "label": {
+                "en": "OK",
+                "fr": "OK",
+                "de": "OK",
+                "es": "OK"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
+        },
+        {
+          "key": "rule",
+          "type": "string",
+          "label": {
+            "en": "Alert rule",
+            "fr": "Règle d'alerte",
+            "de": "Alarmregel",
+            "es": "Regla de alerta"
+          }
+        },
+        {
+          "key": "severity_name",
+          "type": "string",
+          "label": {
+            "en": "Severity",
+            "fr": "Sévérité",
+            "de": "Schweregrad",
+            "es": "Gravedad"
+          }
+        },
+        {
+          "key": "severity",
+          "type": "string",
+          "label": {
+            "en": "Severity key (ok, warning, critical)",
+            "fr": "Clé de sévérité (ok, warning, critical)",
+            "de": "Schweregrad-Schlüssel (ok, warning, critical)",
+            "es": "Clave de gravedad (ok, warning, critical)"
+          }
+        },
+        {
+          "key": "rule_id",
+          "type": "string",
+          "label": {
+            "en": "Rule id",
+            "fr": "Identifiant de la règle",
+            "de": "Regel-ID",
+            "es": "Id. de la regla"
+          }
+        },
+        {
+          "key": "alert_id",
+          "type": "string",
+          "label": {
+            "en": "Alert id",
+            "fr": "Identifiant de l'alerte",
+            "de": "Alarm-ID",
+            "es": "Id. de la alerta"
+          }
+        }
+      ]
+    },
+    {
+      "key": "alert_cleared",
+      "label": {
+        "en": "An alert is cleared",
+        "fr": "Une alerte est résolue",
+        "de": "Ein Alarm ist behoben",
+        "es": "Se resuelve una alerta"
+      },
+      "description": {
+        "en": "A LibreNMS alert is over.",
+        "fr": "Une alerte LibreNMS est terminée.",
+        "de": "Ein LibreNMS-Alarm ist vorbei.",
+        "es": "Una alerta de LibreNMS ha terminado."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        },
+        {
+          "key": "severity",
+          "type": "multi_select",
+          "label": {
+            "en": "Severities (empty: any)",
+            "fr": "Sévérités (vide : n'importe laquelle)",
+            "de": "Schweregrade (leer: beliebig)",
+            "es": "Gravedades (vacío: cualquiera)"
+          },
+          "options": [
+            {
+              "value": "warning",
+              "label": {
+                "en": "Warning",
+                "fr": "Avertissement",
+                "de": "Warnung",
+                "es": "Advertencia"
+              }
+            },
+            {
+              "value": "critical",
+              "label": {
+                "en": "Critical",
+                "fr": "Critique",
+                "de": "Kritisch",
+                "es": "Crítica"
+              }
+            },
+            {
+              "value": "ok",
+              "label": {
+                "en": "OK",
+                "fr": "OK",
+                "de": "OK",
+                "es": "OK"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
+        },
+        {
+          "key": "rule",
+          "type": "string",
+          "label": {
+            "en": "Alert rule",
+            "fr": "Règle d'alerte",
+            "de": "Alarmregel",
+            "es": "Regla de alerta"
+          }
+        },
+        {
+          "key": "severity_name",
+          "type": "string",
+          "label": {
+            "en": "Severity",
+            "fr": "Sévérité",
+            "de": "Schweregrad",
+            "es": "Gravedad"
+          }
+        },
+        {
+          "key": "severity",
+          "type": "string",
+          "label": {
+            "en": "Severity key (ok, warning, critical)",
+            "fr": "Clé de sévérité (ok, warning, critical)",
+            "de": "Schweregrad-Schlüssel (ok, warning, critical)",
+            "es": "Clave de gravedad (ok, warning, critical)"
+          }
+        },
+        {
+          "key": "rule_id",
+          "type": "string",
+          "label": {
+            "en": "Rule id",
+            "fr": "Identifiant de la règle",
+            "de": "Regel-ID",
+            "es": "Id. de la regla"
+          }
+        },
+        {
+          "key": "alert_id",
+          "type": "string",
+          "label": {
+            "en": "Alert id",
+            "fr": "Identifiant de l'alerte",
+            "de": "Alarm-ID",
+            "es": "Id. de la alerta"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration (minutes)",
+            "fr": "Durée (minutes)",
+            "de": "Dauer (Minuten)",
+            "es": "Duración (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "port_down",
+      "label": {
+        "en": "A followed port goes down",
+        "fr": "Un port suivi tombe",
+        "de": "Ein verfolgter Port fällt aus",
+        "es": "Un puerto seguido cae"
+      },
+      "description": {
+        "en": "A port of the configuration loses its link (not when shut by the administrator).",
+        "fr": "Un port de la configuration perd son lien (pas quand l'administrateur le coupe).",
+        "de": "Ein Port der Konfiguration verliert seine Verbindung (nicht, wenn der Administrator ihn abschaltet).",
+        "es": "Un puerto de la configuración pierde su enlace (no cuando el administrador lo apaga)."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
+        },
+        {
+          "key": "port",
+          "type": "string",
+          "label": {
+            "en": "Port",
+            "fr": "Port",
+            "de": "Port",
+            "es": "Puerto"
+          }
+        },
+        {
+          "key": "alias",
+          "type": "string",
+          "label": {
+            "en": "Port description",
+            "fr": "Description du port",
+            "de": "Port-Beschreibung",
+            "es": "Descripción del puerto"
+          }
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status (down, lowerLayerDown…)",
+            "fr": "État (down, lowerLayerDown…)",
+            "de": "Status (down, lowerLayerDown…)",
+            "es": "Estado (down, lowerLayerDown…)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "port_up",
+      "label": {
+        "en": "A followed port is back",
+        "fr": "Un port suivi revient",
+        "de": "Ein verfolgter Port ist zurück",
+        "es": "Un puerto seguido vuelve"
+      },
+      "description": {
+        "en": "A port of the configuration has its link again.",
+        "fr": "Un port de la configuration retrouve son lien.",
+        "de": "Ein Port der Konfiguration hat wieder eine Verbindung.",
+        "es": "Un puerto de la configuración recupera su enlace."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "multi_select",
+          "source": "devices",
+          "label": {
+            "en": "Devices (empty: any)",
+            "fr": "Appareils (vide : n'importe lequel)",
+            "de": "Geräte (leer: beliebig)",
+            "es": "Dispositivos (vacío: cualquiera)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen; empty works for every one.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent ; vide vaut pour tous.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar; leer gilt für alle.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys; vacío vale para todos."
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'équipement",
+            "de": "Gerätename",
+            "es": "Nombre del equipo"
+          }
+        },
+        {
+          "key": "port",
+          "type": "string",
+          "label": {
+            "en": "Port",
+            "fr": "Port",
+            "de": "Port",
+            "es": "Puerto"
+          }
+        },
+        {
+          "key": "alias",
+          "type": "string",
+          "label": {
+            "en": "Port description",
+            "fr": "Description du port",
+            "de": "Port-Beschreibung",
+            "es": "Descripción del puerto"
+          }
+        },
+        {
+          "key": "duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration (minutes)",
+            "fr": "Durée (minutes)",
+            "de": "Dauer (Minuten)",
+            "es": "Duración (minutos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "server_unreachable",
+      "label": {
+        "en": "LibreNMS no longer answers",
+        "fr": "LibreNMS ne répond plus",
+        "de": "LibreNMS antwortet nicht mehr",
+        "es": "LibreNMS ya no responde"
+      },
+      "description": {
+        "en": "The LibreNMS API fails to answer twice in a row.",
+        "fr": "L'API de LibreNMS ne répond pas deux fois de suite.",
+        "de": "Die LibreNMS-API antwortet zweimal hintereinander nicht.",
+        "es": "La API de LibreNMS no responde dos veces seguidas."
+      },
+      "variables": [
+        {
+          "key": "server",
+          "type": "string",
+          "label": {
+            "en": "LibreNMS address",
+            "fr": "Adresse de LibreNMS",
+            "de": "Adresse von LibreNMS",
+            "es": "Dirección de LibreNMS"
+          }
+        },
+        {
+          "key": "error",
+          "type": "string",
+          "label": {
+            "en": "Error",
+            "fr": "Erreur",
+            "de": "Fehler",
+            "es": "Error"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "acknowledge_alerts",
+      "timeout_seconds": 30,
+      "label": {
+        "en": "Acknowledge the alerts of a device",
+        "fr": "Acquitter les alertes d'un équipement",
+        "de": "Alarme eines Geräts bestätigen",
+        "es": "Reconocer las alertas de un equipo"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Acknowledges the active alerts of a device in LibreNMS, with a note in their history.",
+        "fr": "Acquitte les alertes actives d'un équipement dans LibreNMS, avec une note dans leur historique.",
+        "de": "Bestätigt die aktiven Alarme eines Geräts in LibreNMS, mit einer Notiz in ihrem Verlauf.",
+        "es": "Reconoce las alertas activas de un equipo en LibreNMS, con una nota en su historial."
+      },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "required": true,
+          "label": {
+            "en": "Device",
+            "fr": "Équipement",
+            "de": "Gerät",
+            "es": "Equipo"
+          }
+        },
+        {
+          "key": "note",
+          "type": "string",
+          "required": false,
+          "label": {
+            "en": "Note (optional)",
+            "fr": "Note (facultatif)",
+            "de": "Notiz (optional)",
+            "es": "Nota (opcional)"
+          },
+          "description": {
+            "en": "Empty: \"Acknowledged from Gladys\".",
+            "fr": "Vide : « Acquitté depuis Gladys ».",
+            "de": "Leer: „In Gladys bestätigt“.",
+            "es": "Vacío: «Reconocido desde Gladys»."
+          }
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "acknowledged",
+          "type": "number",
+          "label": {
+            "en": "Alerts acknowledged",
+            "fr": "Alertes acquittées",
+            "de": "Bestätigte Alarme",
+            "es": "Alertas reconocidas"
+          }
+        }
+      ]
+    },
+    {
+      "key": "get_status",
+      "timeout_seconds": 30,
+      "label": {
+        "en": "Read the network status",
+        "fr": "Lire l'état du réseau",
+        "de": "Netzwerkstatus lesen",
+        "es": "Leer el estado de la red"
+      },
+      "description": {
+        "en": "Counts and lists the devices down and the active alerts, of one device or of all, for the next actions.",
+        "fr": "Compte et liste les équipements hors ligne et les alertes actives, d'un équipement ou de tous, pour les actions suivantes.",
+        "de": "Zählt und listet die Geräte offline und die aktiven Alarme eines Geräts oder aller für die nächsten Aktionen.",
+        "es": "Cuenta y enumera los equipos fuera de línea y las alertas activas, de un equipo o de todos, para las acciones siguientes."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Device (empty: all)",
+            "fr": "Équipement (vide : tous)",
+            "de": "Gerät (leer: alle)",
+            "es": "Equipo (vacío: todos)"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "devices_down",
+          "type": "number",
+          "label": {
+            "en": "Devices down",
+            "fr": "Équipements hors ligne",
+            "de": "Geräte offline",
+            "es": "Equipos fuera de línea"
+          }
+        },
+        {
+          "key": "down_names",
+          "type": "string",
+          "label": {
+            "en": "Devices down (names)",
+            "fr": "Équipements hors ligne (noms)",
+            "de": "Geräte offline (Namen)",
+            "es": "Equipos fuera de línea (nombres)"
+          }
+        },
+        {
+          "key": "alerts",
+          "type": "number",
+          "label": {
+            "en": "Active alerts",
+            "fr": "Alertes actives",
+            "de": "Aktive Alarme",
+            "es": "Alertas activas"
+          }
+        },
+        {
+          "key": "unacknowledged",
+          "type": "number",
+          "label": {
+            "en": "Not acknowledged",
+            "fr": "Non acquittées",
+            "de": "Unbestätigt",
+            "es": "Sin reconocer"
+          }
+        },
+        {
+          "key": "critical",
+          "type": "number",
+          "label": {
+            "en": "Critical alerts",
+            "fr": "Alertes critiques",
+            "de": "Kritische Alarme",
+            "es": "Alertas críticas"
+          }
+        },
+        {
+          "key": "highest_severity",
+          "type": "string",
+          "label": {
+            "en": "Highest severity",
+            "fr": "Sévérité la plus haute",
+            "de": "Höchster Schweregrad",
+            "es": "Gravedad más alta"
+          }
+        },
+        {
+          "key": "alert_names",
+          "type": "string",
+          "label": {
+            "en": "Alerts (device: rule)",
+            "fr": "Alertes (équipement : règle)",
+            "de": "Alarme (Gerät: Regel)",
+            "es": "Alertas (equipo: regla)"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
+      "key": "overview",
       "icon": "activity",
-      "action_timeout_seconds": 15
+      "action_timeout_seconds": 30,
+      "label": {
+        "en": "LibreNMS overview",
+        "fr": "Vue LibreNMS",
+        "de": "LibreNMS-Übersicht",
+        "es": "Resumen de LibreNMS"
+      },
+      "description": {
+        "en": "Devices down and active alerts, the most severe first.",
+        "fr": "Équipements hors ligne et alertes actives, les plus graves d'abord.",
+        "de": "Geräte offline und aktive Alarme, die schwersten zuerst.",
+        "es": "Equipos fuera de línea y alertas activas, las más graves primero."
+      },
+      "settings": [
+        {
+          "key": "devices",
+          "type": "multi_select",
+          "source": "devices",
+          "required": false,
+          "label": {
+            "en": "Devices (empty: all)",
+            "fr": "Équipements (vide : tous)",
+            "de": "Geräte (leer: alle)",
+            "es": "Equipos (vacío: todos)"
+          },
+          "description": {
+            "en": "Only the devices added to Gladys can be chosen.",
+            "fr": "Seuls les appareils ajoutés à Gladys se choisissent.",
+            "de": "Nur die in Gladys angelegten Geräte sind wählbar.",
+            "es": "Solo se pueden elegir los dispositivos añadidos a Gladys."
+          }
+        }
+      ]
     }
   ]
 }
