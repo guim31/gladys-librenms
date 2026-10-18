@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-18
+
 ### Added
 
 - LibreNMS devices in Gladys, from the Discover tab: online, uptime, active
@@ -29,3 +31,6 @@ the notes of the version's GitHub Release.
   acknowledged, and the list of what is wrong.
 - "Test the connection" action, documentation in English, French, German and
   Spanish.
+
+[Unreleased]: https://github.com/guim31/gladys-librenms/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-librenms/releases/tag/v1.0.0
