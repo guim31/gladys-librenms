@@ -1,6 +1,6 @@
 {
   "name": "gladys-librenms",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Gladys Assistant integration for LibreNMS: devices, health sensors, ports and alerts as devices, scene triggers when a device or a port goes down or an alert is raised, acknowledgement from scenes, a dashboard widget.",
   "type": "module",
